@@ -1,0 +1,8 @@
+./src/edu/northeastern/cs6650/project2/common/ServerResponseCode.java
+./src/edu/northeastern/cs6650/project2/common/RequestType.java
+./src/edu/northeastern/cs6650/project2/common/Utils.java
+./src/edu/northeastern/cs6650/project2/interfaces/KeyValueStoreInterface.java
+./src/edu/northeastern/cs6650/project2/client/Client.java
+./src/edu/northeastern/cs6650/project2/client/KeyValueStoreRMIClient.java
+./src/edu/northeastern/cs6650/project2/server/KeyValueStoreRMIServer.java
+./src/edu/northeastern/cs6650/project2/server/Server.java

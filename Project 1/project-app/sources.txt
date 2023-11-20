@@ -1,0 +1,12 @@
+./src/edu/northeastern/cs6650/project1/common/ServerResponseCode.java
+./src/edu/northeastern/cs6650/project1/common/ServerType.java
+./src/edu/northeastern/cs6650/project1/common/RequestType.java
+./src/edu/northeastern/cs6650/project1/common/Utils.java
+./src/edu/northeastern/cs6650/project1/client/BaseClient.java
+./src/edu/northeastern/cs6650/project1/client/TCPClient.java
+./src/edu/northeastern/cs6650/project1/client/UDPClient.java
+./src/edu/northeastern/cs6650/project1/client/Client.java
+./src/edu/northeastern/cs6650/project1/server/BaseServer.java
+./src/edu/northeastern/cs6650/project1/server/TCPServer.java
+./src/edu/northeastern/cs6650/project1/server/UDPServer.java
+./src/edu/northeastern/cs6650/project1/server/Server.java
