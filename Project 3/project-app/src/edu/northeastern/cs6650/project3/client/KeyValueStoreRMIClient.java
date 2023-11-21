@@ -17,11 +17,12 @@ package edu.northeastern.cs6650.project3.client;
 
 import java.util.NoSuchElementException;
 import java.util.logging.Logger;
-
 import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
+import java.util.concurrent.ExecutionException;
+import java.rmi.ConnectIOException;
 
 import edu.northeastern.cs6650.project3.interfaces.KeyValueStoreInterface;
 import edu.northeastern.cs6650.project3.common.RequestType;
@@ -63,6 +64,7 @@ public class KeyValueStoreRMIClient {
             int countKeyValStoreServers = 0;
             boolean isServerAvailable = true;
             
+            // determine how many key value store servers are running
             while(isServerAvailable) {
                 try {
                     Registry serverRegistry = LocateRegistry.getRegistry(serverIPAddress, serverPort + 1 + countKeyValStoreServers);
@@ -121,8 +123,15 @@ public class KeyValueStoreRMIClient {
         }
 
         if(interfaceInitialized) {
-            serverInterface.putKeyValue(key, value);
-            return true;
+            try{
+                serverInterface.putKeyValue(key, value);
+                return true;
+            } catch(ExecutionException eexp) {
+                return false;
+            } catch(ConnectIOException cioexp) {
+                LOGGER.severe("Remote cannot be reached due to networking/firewall issues.");
+                return false;
+            }
         } 
 
         return false;
@@ -141,7 +150,12 @@ public class KeyValueStoreRMIClient {
         }
 
         if (interfaceInitialized) {
-            return serverInterface.getValue(key);
+            try {
+                return serverInterface.getValue(key);
+            } catch(ConnectIOException cioexp) {
+                LOGGER.severe("Remote cannot be reached due to networking/firewall issues.");
+                return null;
+            }
         } else {
             return null;
         }
@@ -152,7 +166,7 @@ public class KeyValueStoreRMIClient {
      * 
      * This inturn calls the a method on the remote object to execute DELETE operation
      */
-    public void makeDeleteRequest(String key) throws RemoteException, NoSuchElementException {
+    public boolean makeDeleteRequest(String key) throws RemoteException, NoSuchElementException {
         
         // try initializing the remote object in case the server was not previously available
         if (!interfaceInitialized) {
@@ -160,7 +174,17 @@ public class KeyValueStoreRMIClient {
         }
 
         if (interfaceInitialized) {
-            serverInterface.deleteKeyValue(key);
+            try{
+                serverInterface.deleteKeyValue(key);
+                return true;
+            } catch(ExecutionException eexp) {
+                return false;
+            } catch(ConnectIOException cioexp) {
+                LOGGER.severe("Remote cannot be reached due to networking/firewall/timeout issues.");
+                return false;
+            }
         }
+
+        return false;
     }
 }

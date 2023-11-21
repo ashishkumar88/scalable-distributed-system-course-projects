@@ -18,14 +18,20 @@ package edu.northeastern.cs6650.project3.interfaces;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ExecutionException;
 
+import edu.northeastern.cs6650.project3.common.RequestType;
 /*
  * This RMI interface declare methods for the three application operations
  * 
  * These methods are called by the client and implemented on the server.
  */
 public interface KeyValueStoreInterface extends Remote {
-    void putKeyValue(String key, String value) throws RemoteException;
-    void deleteKeyValue(String key) throws RemoteException, NoSuchElementException;
+    void putKeyValue(String key, String value) throws RemoteException, ExecutionException;
+    void deleteKeyValue(String key) throws RemoteException, NoSuchElementException, ExecutionException;
     String getValue(String key) throws RemoteException, NoSuchElementException;
+   
+    boolean canCommit(RequestType requestType, String key, String value) throws RemoteException;
+    boolean doCommit(RequestType requestType, String key, String value) throws RemoteException;
+    boolean doAbort(RequestType requestType, String key, String value) throws RemoteException;
 }

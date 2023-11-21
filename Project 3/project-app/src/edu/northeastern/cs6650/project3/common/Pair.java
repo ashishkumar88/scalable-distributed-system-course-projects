@@ -1,4 +1,4 @@
-package edu.northeastern.cs6650.project3.interfaces;
+package edu.northeastern.cs6650.project3.common;
 /**
  * Copyright 2023 Ashish Kumar
  *
@@ -15,15 +15,28 @@ package edu.northeastern.cs6650.project3.interfaces;
  * limitations under the License.
  */
 
-import java.rmi.Remote;
-import java.rmi.RemoteException;
-
 import edu.northeastern.cs6650.project3.common.RequestType;
 
-public interface KeyValueStoreTwoPhaseCommitCoordinatorInterface extends Remote {
-    boolean initiateTwoPhaseCommit(RequestType requestType, String key, String value) throws RemoteException;
-    boolean canCommit(RequestType requestType, String key, String value) throws RemoteException;
-    boolean doCommit(RequestType requestType, String key, String value) throws RemoteException;
-    boolean doAbort(RequestType requestType, String key, String value) throws RemoteException;
-    void haveCommitted(int index) throws RemoteException;
+public class Pair {
+    private String key;
+    private String value;
+    private RequestType requestType;
+
+    public Pair(RequestType requestType, String key, String value) {
+        this.key = key;
+        this.value = value;
+        this.requestType = requestType; 
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public RequestType getRequestType() {
+        return requestType;
+    }
 }

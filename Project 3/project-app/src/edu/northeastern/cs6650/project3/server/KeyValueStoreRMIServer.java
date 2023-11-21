@@ -29,22 +29,27 @@ import java.util.Arrays;
 import java.util.concurrent.locks.Lock; 
 import java.util.concurrent.locks.ReadWriteLock; 
 import java.util.concurrent.locks.ReentrantReadWriteLock; 
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ExecutionException;
 
 import edu.northeastern.cs6650.project3.common.ServerResponseCode;
 import edu.northeastern.cs6650.project3.common.Utils;
 import edu.northeastern.cs6650.project3.interfaces.KeyValueStoreInterface;
 import edu.northeastern.cs6650.project3.interfaces.KeyValueStoreTwoPhaseCommitCoordinatorInterface;
 import edu.northeastern.cs6650.project3.common.RequestType;
+import edu.northeastern.cs6650.project3.common.Pair;
 
 /*
- * Class that implements an RMI server for key value storage
+ * Class that implements an RMI server for key value storage. 
+ *
+ * Additionally this class implements a participant in the two phase commit protocol for the key value storage
  */
 public class KeyValueStoreRMIServer extends UnicastRemoteObject implements KeyValueStoreInterface {
 
     private static final Logger LOGGER = Logger.getLogger(KeyValueStoreRMIServer.class.getName());
 
     protected Map<String, String> keyValueStore = new HashMap<String, String>();
-    Object keyValueStoreMutex = new Object();
+    private Object keyValueStoreMutex;
     private String serverIPAddress;
     private int serverPort;
     private KeyValueStoreTwoPhaseCommitCoordinatorInterface twoPhaseCoordinator;
@@ -55,6 +60,7 @@ public class KeyValueStoreRMIServer extends UnicastRemoteObject implements KeyVa
     private final ReadWriteLock readWriteLock; 
     private final Lock writeLock; 
     private final Lock readLock; 
+    private Pair temporaryKeyValueStore;
 
     public KeyValueStoreRMIServer(String serverIPAddress, int serverPort, int index, int totalKeyValueServers) throws RemoteException {
         super();
@@ -66,8 +72,12 @@ public class KeyValueStoreRMIServer extends UnicastRemoteObject implements KeyVa
         readWriteLock = new ReentrantReadWriteLock(); 
         writeLock = readWriteLock.writeLock(); 
         readLock = readWriteLock.readLock(); 
+        keyValueStoreMutex = new Object();
     }
 
+    /*
+     * Initialize the two phase commit coordinator and the key value store servers
+     */
     public void initializeRemoteObjects() {
         try {
 
@@ -96,7 +106,7 @@ public class KeyValueStoreRMIServer extends UnicastRemoteObject implements KeyVa
     /*
      * Process a request to put a key-value pair into the local key - value storage
      */
-    public void putKeyValue(String key, String value) throws RemoteException {
+    public void putKeyValue(String key, String value) throws RemoteException, ExecutionException {
 
         String clientAddress = null;
         try {
@@ -112,15 +122,19 @@ public class KeyValueStoreRMIServer extends UnicastRemoteObject implements KeyVa
         LOGGER.info(clientAddress + "::" + "The key received for PUT request is : " + key + ".\nThe value received for PUT request is : " + value + ".");
         
         writeLock.lock();
-        keyValueStore.put(key, value);
+        boolean successful = this.twoPhaseCoordinator.initiateTwoPhaseCommit(RequestType.PUT, key, value); 
         writeLock.unlock();
+
+        if(!successful) {
+            throw new ExecutionException("The PUT transaction was unsuccessful.", new Throwable("The PUT transaction was unsuccessful."));
+        } 
     }
 
 
     /*
      * Process a request to delete a key from the local key - value storage given a valid key
      */
-    public void deleteKeyValue(String key) throws RemoteException, NoSuchElementException {
+    public void deleteKeyValue(String key) throws RemoteException, NoSuchElementException, ExecutionException {
 
         String clientAddress = null;
         try {
@@ -140,24 +154,14 @@ public class KeyValueStoreRMIServer extends UnicastRemoteObject implements KeyVa
         final boolean flag[] = { false };
         
         writeLock.lock();
-        Thread runner = new Thread(new Runnable() {
-            public void run() {
-                synchronized (keyValueStoreMutex) {
-                    if(keyValueStore.containsKey(key)) {
-                        keyValueStore.remove(key);
-                        flag[0] = true;
-                    } 
-                }
-            }
-        });
-        writeLock.unlock();
-        
-        runner.start();
-        try {
-            runner.join();
-        } catch (Exception exp) {
-            LOGGER.severe("The server was interrupted.");
+        if(keyValueStore.containsKey(key)) {
+            flag[0] = true;
+            boolean successful = this.twoPhaseCoordinator.initiateTwoPhaseCommit(RequestType.DELETE, key, null); 
+            if(!successful) {
+                throw new ExecutionException("The DELETE transaction was unsuccessful.", new Throwable("The DELETE transaction was unsuccessful."));
+            } 
         }
+        writeLock.unlock();
 
         if(!flag[0]) {
             throw new NoSuchElementException("This key does not exist in the system : "+ key + ".");
@@ -196,15 +200,14 @@ public class KeyValueStoreRMIServer extends UnicastRemoteObject implements KeyVa
                     } 
                 }
             }
-        });
-        readLock.unlock();
-
+        }); 
         runner.start();
         try {
             runner.join();
         } catch (Exception exp) {
             LOGGER.severe("The server was interrupted.");
         }
+        readLock.unlock();
 
         if(valueString[0].equals("")) {
             throw new NoSuchElementException("This key does not exist in the system : "+ key + ".");
@@ -212,5 +215,76 @@ public class KeyValueStoreRMIServer extends UnicastRemoteObject implements KeyVa
 
         return valueString[0];
     }
-    
+
+    /*
+    * Process a request to check if a key-value pair can be committed to the local key - value storage
+    */
+    public boolean canCommit(RequestType requestType, String key, String value) throws RemoteException {
+        int randomInteger = ThreadLocalRandom.current().nextInt(1, 101);
+        boolean mostlyTrue = true;
+        
+        // mostlyTrue = randomInteger < 90; // disable for simulation
+
+        if(mostlyTrue) {
+            // Prepare for the transaction
+            new Thread(new Runnable() {
+                public void run() {
+                    synchronized (keyValueStoreMutex) {
+                        temporaryKeyValueStore = new Pair(requestType, key, value);
+                    }
+                }
+            }).start();
+
+            // Send acknowledgement to the coordinator
+            return true;
+        } else {
+            // Send acknowledgement to the coordinator
+            return false;
+        }
+    }
+
+    /*
+    * Process a request to commit a key-value pair to the local key - value storage
+    */
+    public boolean doCommit(RequestType requestType, String key, String value) throws RemoteException {
+        if(requestType == RequestType.PUT) {
+            new Thread(new Runnable() {
+                public void run() {
+                    synchronized (keyValueStoreMutex) {
+                        keyValueStore.put(key, value);
+                        temporaryKeyValueStore = null;
+                    }
+                }
+            }).start();
+        } else if(requestType == RequestType.DELETE) {
+            new Thread(new Runnable() {
+                public void run() {
+                    synchronized (keyValueStoreMutex) {
+                        keyValueStore.remove(key);
+                        temporaryKeyValueStore = null;
+                    }
+                }
+            }).start();
+        }
+
+        // simple and effective way to communicate haveCommitted to the coordinator
+        twoPhaseCoordinator.haveCommitted(myIndex);
+        return true;
+    }
+
+    /*
+    * Process a request to abort a key-value pair to the local key - value storage
+    */
+    public boolean doAbort(RequestType requestType, String key, String value) throws RemoteException {
+        new Thread(new Runnable() {
+            public void run() {
+                synchronized (keyValueStoreMutex) {
+                    temporaryKeyValueStore = null;
+                }
+            }
+        }).start();
+
+        // simple and effective way to communicate haveCommitted to the coordinator
+        return true;
+    }
 }

@@ -23,6 +23,7 @@ import java.util.NoSuchElementException;
 import java.util.logging.Logger;
 import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.rmi.RemoteException;
 
 import edu.northeastern.cs6650.project3.client.KeyValueStoreRMIClient;
 import edu.northeastern.cs6650.project3.common.Utils;
@@ -36,7 +37,7 @@ import edu.northeastern.cs6650.project3.common.RequestType;
  * 2 are required and 2 are optional. The required and optional arguments are described below.
  * Required command line arguments:
  * 1. <server ip> - IP address of the server hosting the registry as well as implementation of the RMI methods
- * for this application.
+ * for this application. If the server is remote, specify remote ip address as used when launching the server.
  * 2. <server port> - Based port that the server was initialized with. For example, if the server program was launched
  * on port 5000, then the client should be launched with 5000 as the port number.
  * 
@@ -46,6 +47,7 @@ import edu.northeastern.cs6650.project3.common.RequestType;
  * 4. true/false - he fourth argument when set to false will not run the required 5 operations. Default behavior
  * is that the client run the default 5 operations.
  *  
+ * The replica server is selected later.
  */
 
 import edu.northeastern.cs6650.project3.common.Utils;
@@ -86,12 +88,28 @@ public class Client
                 // Perform the required 5 PUT, GET and DELETE operations if the 3rd argument is not set to false
                 if(isRequiredOperationsRequired) {
                     for(int i = 0; i < 5; i++) {
-                        client.makePutRequest("key"+ String.valueOf(i), "value"+ String.valueOf(i));
-                        LOGGER.info(String.format("Making required PUT request with key, value = (key%d, value%d)", i, i));
-                        String value = client.makeGetRequest("key"+ String.valueOf(i));
-                        LOGGER.info(String.format("Made required GET request with key: key%d. Value is: %s.", i, value));
-                        client.makeDeleteRequest("key"+ String.valueOf(i));
-                        LOGGER.info(String.format("Made required DELETE request with key: key%d.", i));
+                        try {
+                            boolean successful = client.makePutRequest("key"+ String.valueOf(i), "value"+ String.valueOf(i));
+                            if(successful) {
+                                LOGGER.info(String.format("Required PUT request with key, value = (key%d, value%d) succeeded.", i, i));
+                            } else {
+                                LOGGER.severe(String.format("Required PUT request with key, value = (key%d, value%d) failed.", i, i));
+                            }
+                            try{
+                                String value = client.makeGetRequest("key"+ String.valueOf(i));
+                                LOGGER.info(String.format("Required GET request with key: key%d. Value is: %s.", i, value));
+                            } catch(NoSuchElementException nsee) {
+                                LOGGER.severe(nsee.getMessage());
+                            }
+                            try{
+                                client.makeDeleteRequest("key"+ String.valueOf(i));
+                                LOGGER.info(String.format("Required DELETE request with key: key%d is successful.", i));
+                            } catch(NoSuchElementException nsee) {
+                                LOGGER.severe(nsee.getMessage());
+                            }
+                        } catch(RemoteException nsee) {
+                            LOGGER.severe(nsee.getMessage());
+                        }
                     }
                 }
                 
@@ -180,8 +198,12 @@ public class Client
                                     LOGGER.severe("Key is invalid. Please try again.");
                                 } else {
                                     try {
-                                        client.makeDeleteRequest(key);
-                                        LOGGER.info("Key, value successfully deleted on the server.");
+                                        boolean isDone = client.makeDeleteRequest(key);
+                                        if(isDone) {
+                                            LOGGER.info("Key, value successfully deleted on the server.");
+                                        } else {
+                                            LOGGER.severe("Key, value could not be deleted on the server.");
+                                        }
                                     } catch(NoSuchElementException nsee) {
                                         LOGGER.severe(nsee.getMessage());
                                     }
