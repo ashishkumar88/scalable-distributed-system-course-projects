@@ -1,0 +1,12 @@
+./src/edu/northeastern/cs6650/project4/common/ServerResponseCode.java
+./src/edu/northeastern/cs6650/project4/common/RequestType.java
+./src/edu/northeastern/cs6650/project4/common/ServerType.java
+./src/edu/northeastern/cs6650/project4/common/Utils.java
+./src/edu/northeastern/cs6650/project4/common/RequestObject.java
+./src/edu/northeastern/cs6650/project4/common/PromiseObject.java
+./src/edu/northeastern/cs6650/project4/interfaces/KeyValueStoreInterface.java
+./src/edu/northeastern/cs6650/project4/interfaces/KeyValuePaxosInterface.java
+./src/edu/northeastern/cs6650/project4/client/Client.java
+./src/edu/northeastern/cs6650/project4/client/KeyValueStoreRMIClient.java
+./src/edu/northeastern/cs6650/project4/server/KeyValueStoreRMIServer.java
+./src/edu/northeastern/cs6650/project4/server/KeyValueServers.java
