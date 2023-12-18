@@ -10,4 +10,8 @@ Multi-threaded Key-Value Store using RPC
 
 ### Project 3
 
-Multi-threaded Key-Value Store using RPC with Replication
+Multi-threaded Key-Value Store using RPC with Replication implemented with Two Phase Commit Protocol
+
+### Project 4
+
+Multi-threaded Key-Value Store using RPC with Replication implemented with PAXOS algorithm
